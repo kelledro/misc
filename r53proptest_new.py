@@ -11,17 +11,19 @@ import time
 import datetime
 import pytz
 import socket
+import dns.resolver
 
 zoneId = "Z3JNDBS8LPKXRY"
-authNSList = ""
+
 counter = 0
 client = boto3.client('route53')
 f = open('proptime.log','w')
 
 while True:
 	counter += 1
-	hostname = str(counter) + 'testing.com'
-	# Make update
+	hostname = str(counter) + '.testing.com'
+
+	# new record
 	upsertResponse = client.change_resource_record_sets(
     		HostedZoneId=zoneId,
     		ChangeBatch={
@@ -45,6 +47,11 @@ while True:
 	)
 
 	# Check for record
+	resolver = dns.resolver.Resolver()
+	resolver.nameservers=[socket.gethostbyname('ns-624.awsdns-14.net')]
+	query = resolver.query(hostname, 'A', raise_on_no_answer=False)
+	print query.rrset
+
 	getChangeResponse = client.get_change(
 		Id=upsertResponse['ChangeInfo']['Id']
 	)
@@ -55,7 +62,7 @@ while True:
 		# Get Change Status
 		getChangeResponse = client.get_change(
          	       Id=upsertResponse['ChangeInfo']['Id']
-        	)
+    	)
 
 	elapsed = datetime.datetime.now(pytz.UTC) - upsertResponse['ChangeInfo']['SubmittedAt']
 	requestId = upsertResponse['ResponseMetadata']['RequestId']
